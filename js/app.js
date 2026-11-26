@@ -510,7 +510,7 @@
     S.presets.builtins = PR.builtins(S.model, S.type, prof().keys_array.length);
     if (!C() && S.tab === 'light') S.tab = 'perf';
     if (!R() && S.tab === 'remap') S.tab = 'perf';
-    if (S.presets.incoming) { S.tab = 'presets'; S.presets.selected = S.presets.incoming.id; }
+    if (S.presets.incoming) { S.tab = 'presets'; S.presets.selected = S.presets.incoming.id; syncPresetMetric(); }
     if (S.tab === 'presets' && !S.presets.selected) S.presets.selected = S.presets.builtins[0].id;
   }
 
@@ -716,6 +716,12 @@
     if (!p._colors) { try { p._colors = PR.decodeColors(p.colors); } catch { p._colors = new Map(); } }
     return p;
   }
+  // After choosing a preset: show its key colours on the board if it has any, otherwise its values.
+  function syncPresetMetric() {
+    const p = previewPreset();
+    if (p && p._colors.size) S.presets.metric = 'c';
+    else if (S.presets.metric === 'c') S.presets.metric = 'ap';
+  }
 
   function paintKeys() {
     if (!S.model || !S.keyEls.size) return;
@@ -727,7 +733,7 @@
     const pv = previewPreset();
     const showColors = Boolean(pv && presetMetric(pv) === 'c');
     const metric = presetMetric(pv) === 'c' ? 'ap' : S.presets.metric;
-    board.classList.toggle('colors', showColors);
+    board.classList.toggle('colors', showColors || custom);
     board.dataset.vals = tab === 'presets' ? 'always' : S.prefs.vals;
     board.classList.toggle('rt-off', Boolean((tab === 'perf' && !S.rt) || (pv && !pv.rt && metric === 'ap')));
     board.classList.toggle('heat', Boolean(pv));
@@ -767,7 +773,7 @@
         el.classList.toggle('mapped', mapped);
         let sw = el.querySelector('.swatch');
         const color = custom ? S.light.paint.get(i) : showColors ? pv._colors.get(i) : null;
-        if (color && showColors) el.style.setProperty('--kc', '#' + color); else el.style.removeProperty('--kc');
+        if (color) el.style.setProperty('--kc', '#' + color); else el.style.removeProperty('--kc');
         if (color) {
           if (!sw) { sw = document.createElement('span'); sw.className = 'swatch'; el.append(sw); }
           sw.style.backgroundColor = '#' + color;
@@ -1768,7 +1774,12 @@
     if (!p || typeof p.keys !== 'string' || !p.id) { show('This shared preset is not available.'); return; }
     S.presets.incoming = p;
     show(`Shared preset <b>${esc(p.name)}</b> by ${esc(p.author)} (${esc(modelName(p.model))}). Connect your keyboard or open Demo mode to preview and apply it.`);
-    if (S.connected) { S.presets.selected = p.id; S.tab === 'presets' ? renderAll() : setTab('presets'); }
+    if (S.connected) {
+      S.presets.selected = p.id;
+      setTab('presets'); // no-op if already there; preview needs the tab open before picking the metric
+      syncPresetMetric();
+      renderAll();
+    }
   }
 
   // ---------------------------------------------------------------- firmware archive (GitHub: deerios)
@@ -1779,6 +1790,9 @@
     'DrunkdeerUpdaterV2.2.3.zip', 'DrunkdeerUpdaterV2.2.1.zip', 'DrunkdeerUpdaterV2.2.0.zip', 'DrunkdeerUpdaterV2.1.5.zip',
     'DrunkdeerUpdaterV1.4.9_0513.zip', 'DrunkdeerUpdaterV1.4.9.zip', 'drunkdeerUpgradev1.2_20240802.zip',
     'drunkdeer_A75_Pro_us_v0004_20240511.zip', 'drunkdeer_A75_us_v0017_20240511.zip'].map((name) => ({ name, size: 0 }));
+  // v1.2 is the most stable updater: newer builds have bugs (e.g. with Last Win on, the Z key lights up white).
+  const FW_STABLE = 'drunkdeerUpgradev1.2_20240802.zip';
+  const FW_STABLE_NOTE = 'Most stable, no known bugs. Newer builds have issues — e.g. with Last Win on, the Z key starts glowing white.';
   const fwState = { files: null, status: 'idle' };
   const fwUrl = (name) => `https://github.com/${FW_REPO}/raw/${FW_BRANCH}/${encodeURIComponent(name)}`;
   const fwDate = (d) => (d ? `${d.slice(0, 4)}-${d.slice(4, 6)}-${d.slice(6, 8)}` : '');
@@ -1828,11 +1842,13 @@
     ].filter(([, list]) => list.length);
     const item = (f, i) => {
       const other = f.kind === 'model' && !mine(f);
-      const badge = i === 0 && f.kind === 'updater' ? '<span class="badge ok">Latest</span>'
+      const badge = f.name === FW_STABLE ? '<span class="badge ok">Most stable · recommended</span>'
+        : i === 0 && f.kind === 'updater' ? '<span class="badge warn">Latest · may have bugs</span>'
         : mine(f) ? `<span class="badge ok">Your ${esc(S.model.name)}</span>` : other ? `<span class="badge warn">${esc(f.model)} only</span>` : '';
       const meta = [f.note, f.size ? (f.size / 1048576).toFixed(1) + ' MB' : ''].filter(Boolean).join(' · ');
-      return `<li class="fw-item${other ? ' other' : ''}">
-          <span class="fw-name"><b>${esc(f.title)}</b>${badge}<small>${esc(meta || f.name)}</small></span>
+      const small = f.name === FW_STABLE ? [meta, FW_STABLE_NOTE].filter(Boolean).join(' · ') : meta || f.name;
+      return `<li class="fw-item${other ? ' other' : ''}${f.name === FW_STABLE ? ' stable' : ''}">
+          <span class="fw-name"><b>${esc(f.title)}</b>${badge}<small>${esc(small)}</small></span>
           <a class="btn" href="${fwUrl(f.name)}" target="_blank" rel="noopener" title="${esc(f.name)}" ${other ? `data-fw-other="${esc(f.model)}"` : ''}><span class="ico ico-download" aria-hidden="true"></span>Download</a>
         </li>`;
     };
@@ -1840,7 +1856,7 @@
       + (fwState.status === 'offline' ? '<p class="fw-empty">Couldn’t reach GitHub — showing the last known list.</p>' : '');
   }
 
-  // Newest updater in the archive (the official site still serves an old v1.2 build).
+  // Newest updater in the archive.
   function latestUpdater() {
     const ups = (fwState.files || FW_KNOWN).map(parseFw).filter((f) => f.kind === 'updater');
     return ups.sort((a, b) => (a.sort < b.sort ? 1 : a.sort > b.sort ? -1 : 0))[0];
@@ -1895,8 +1911,10 @@
           <button class="btn danger" type="button" data-act="leave">${S.demo ? 'Exit demo' : 'Disconnect'}</button></div>`,
       firmware: `<h3>Firmware</h3>
         <div class="row"><span class="lbl">Installed version<small>Custom per-key lighting needs a recent firmware.</small></span><b>${esc(fw)}</b></div>
-        <div class="row"><span class="lbl">Latest updater<small><span id="fw-latest-ver">${esc(latestUpdater().title)}</span> · DrunkDeer’s Windows flashing tool, from the archive below (the official site still serves v1.2).</small></span>
-          <a id="fw-latest" class="btn primary" href="${fwUrl(latestUpdater().name)}" target="_blank" rel="noopener" title="${esc(latestUpdater().name)}"><span class="ico ico-download" aria-hidden="true"></span>Download</a></div>
+        <div class="row"><span class="lbl">Recommended: Updater v1.2 <span class="badge ok">Most stable</span><small>${esc(FW_STABLE_NOTE)}</small></span>
+          <a class="btn primary" href="${fwUrl(FW_STABLE)}" target="_blank" rel="noopener" title="${esc(FW_STABLE)}"><span class="ico ico-download" aria-hidden="true"></span>Download</a></div>
+        <div class="row"><span class="lbl">Latest updater<small><span id="fw-latest-ver">${esc(latestUpdater().title)}</span> · DrunkDeer’s Windows flashing tool. Newer, but less stable than v1.2.</small></span>
+          <a id="fw-latest" class="btn" href="${fwUrl(latestUpdater().name)}" target="_blank" rel="noopener" title="${esc(latestUpdater().name)}"><span class="ico ico-download" aria-hidden="true"></span>Download</a></div>
         <div class="row"><span class="lbl">User manual<small>Key combinations and hardware reset.</small></span>
           <a class="btn" href="${MANUAL_URL}" target="_blank" rel="noopener">Open</a></div>
         <div class="row fw-head"><span class="lbl">Older versions
@@ -2161,9 +2179,7 @@
       }
       if (b.dataset.presetId !== undefined) {
         S.presets.selected = b.dataset.presetId;
-        const picked = previewPreset();
-        if (picked && picked._colors.size) S.presets.metric = 'c';
-        else if (S.presets.metric === 'c') S.presets.metric = 'ap';
+        syncPresetMetric();
         $$('.pl-item').forEach((it) => it.setAttribute('aria-selected', String(it === b)));
         renderPresetDetail(true); renderTools(); paintKeys();
       }

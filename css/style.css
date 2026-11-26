@@ -328,14 +328,16 @@ body::after {
 /* preset preview heatmap */
 .board.heat .key:not(.sel) { background-color: color-mix(in oklab, #ff7979 calc(var(--heat, 0) * 62%), #222530); color: color-mix(in oklab, #fff calc(var(--heat, 0) * 80%), var(--text-2)); }
 .board.heat .key { cursor: default; }
-/* preset preview: real key colours instead of the heatmap */
-.board.heat.colors .key:not(.sel) { background-color: var(--panel); color: var(--text-2); }
-.board.heat.colors .key[style*="--kc"]:not(.sel) {
+/* real key colours: preset preview and Lighting → Custom light */
+.board.colors .key:not(.sel) { background-color: var(--panel); color: var(--text-2); }
+.board.colors .key[style*="--kc"]:not(.sel) {
   background-color: color-mix(in oklab, var(--kc) 34%, #222530);
   color: color-mix(in oklab, var(--kc) 55%, #fff);
   border-color: color-mix(in oklab, var(--kc) 55%, transparent);
+  transition: background-color .3s, border-color .3s, color .3s;
 }
-.board.heat.colors .key .swatch { box-shadow: 0 0 10px currentColor; }
+.board.colors:not(.heat) .key[style*="--kc"]:not(.sel):hover { border-color: color-mix(in oklab, var(--kc) 85%, #fff); }
+.board.colors .key .swatch { box-shadow: 0 0 10px currentColor; }
 .board.heat .key:active { transform: none; }
 
 /* Tools above keyboard */
@@ -662,6 +664,8 @@ a.btn { text-decoration: none; }
   padding: 8px 8px 8px 14px; border-radius: 14px; background: var(--bg); border: 1px solid var(--line);
 }
 .fw-item.other { opacity: .6; }
+.fw-item.stable { border-color: var(--turbo); }
+.row .lbl .badge { align-self: flex-start; }
 .fw-item .btn { height: 32px; padding: 0 14px; flex: none; }
 .fw-name { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; min-width: 0; font-size: 13px; }
 .fw-name b { color: #fff; font-weight: 700; }
