@@ -1840,6 +1840,13 @@
       + (fwState.status === 'offline' ? '<p class="fw-empty">Couldn’t reach GitHub — showing the last known list.</p>' : '');
   }
 
+  // Newest updater in the archive (the official site still serves an old v1.2 build).
+  function latestUpdater() {
+    const ups = (fwState.files || FW_KNOWN).map(parseFw).filter((f) => f.kind === 'updater');
+    return ups.sort((a, b) => (a.sort < b.sort ? 1 : a.sort > b.sort ? -1 : 0))[0];
+  }
+  const MANUAL_URL = 'https://drunkdeer.com/pages/user-manual-select';
+
   async function renderFirmwareArchive(force) {
     const box = () => $('#fw-archive');
     if (!box()) return;
@@ -1848,6 +1855,8 @@
       await loadFirmware(force);
     }
     if (box()) box().innerHTML = fwListHTML();
+    const up = latestUpdater(), link = $('#fw-latest');
+    if (up && link) { link.href = fwUrl(up.name); link.title = up.name; $('#fw-latest-ver').textContent = up.title; }
   }
 
   // ---------------------------------------------------------------- settings modal (ATK Hub style)
@@ -1886,10 +1895,10 @@
           <button class="btn danger" type="button" data-act="leave">${S.demo ? 'Exit demo' : 'Disconnect'}</button></div>`,
       firmware: `<h3>Firmware</h3>
         <div class="row"><span class="lbl">Installed version<small>Custom per-key lighting needs a recent firmware.</small></span><b>${esc(fw)}</b></div>
-        <div class="row"><span class="lbl">Official updater<small>Firmware is flashed with DrunkDeer’s Windows tool.</small></span>
-          <button class="btn primary" type="button" data-act="fw"><span class="ico ico-download" aria-hidden="true"></span>Download</button></div>
+        <div class="row"><span class="lbl">Latest updater<small><span id="fw-latest-ver">${esc(latestUpdater().title)}</span> · DrunkDeer’s Windows flashing tool, from the archive below (the official site still serves v1.2).</small></span>
+          <a id="fw-latest" class="btn primary" href="${fwUrl(latestUpdater().name)}" target="_blank" rel="noopener" title="${esc(latestUpdater().name)}"><span class="ico ico-download" aria-hidden="true"></span>Download</a></div>
         <div class="row"><span class="lbl">User manual<small>Key combinations and hardware reset.</small></span>
-          <button class="btn" type="button" data-act="manual">Open</button></div>
+          <a class="btn" href="${MANUAL_URL}" target="_blank" rel="noopener">Open</a></div>
         <div class="row fw-head"><span class="lbl">Older versions
             <small>Unofficial source · archive collected by <a href="https://github.com/${FW_AUTHOR}" target="_blank" rel="noopener">${FW_AUTHOR}</a> on GitHub.
             Use the version made for your keyboard.</small></span>
@@ -2177,9 +2186,7 @@
       }
       const act = b.dataset.act;
       if (act === 'leave') leave();
-      if (act === 'fw') S.comm.apiUpdateFirmware();
       if (act === 'fw-refresh') renderFirmwareArchive(true);
-      if (act === 'manual') S.comm.manualDoc();
       if (act === 'lib-refresh') loadCommunity(true).then(() => renderSettings(false));
     });
     sheet.addEventListener('change', (e) => {
