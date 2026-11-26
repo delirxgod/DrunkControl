@@ -2,7 +2,7 @@
 //
 // Storage:
 //  * On Vercel: Upstash Redis (Vercel Marketplace → "Upstash for Redis"), via its REST API.
-//    Uses KV_REST_API_URL / KV_REST_API_TOKEN or UPSTASH_REDIS_REST_URL / UPSTASH_REDIS_REST_TOKEN.
+//    Uses [PREFIX_]KV_REST_API_URL / _TOKEN or [PREFIX_]UPSTASH_REDIS_REST_URL / _TOKEN (any prefix).
 //  * Locally (node serve.js): a JSON file in .data/ so publishing can be tried without deploying.
 //
 // GET    /api/presets              → { items: [...] }   newest first (max 200)
@@ -21,10 +21,18 @@ const MAX_LIST = 200;
 const RATE_LIMIT = 20; // publishes per IP per hour
 
 // ---------------------------------------------------------------- storage
+// The Marketplace integration may add a custom prefix (e.g. DDSTORAGE_KV_REST_API_URL), so match any
+// prefix, taking the URL and the token from the same pair. Never the *_READ_ONLY_TOKEN: publishing writes.
 function redisConfig() {
-  const url = process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL;
-  const token = process.env.KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN;
-  return url && token ? { url: url.replace(/\/$/, ''), token } : null;
+  const env = process.env;
+  for (const [urlSuffix, tokenSuffix] of [['KV_REST_API_URL', 'KV_REST_API_TOKEN'], ['UPSTASH_REDIS_REST_URL', 'UPSTASH_REDIS_REST_TOKEN']]) {
+    for (const key of Object.keys(env).filter((k) => k.endsWith(urlSuffix)).sort((a, b) => a.length - b.length)) {
+      const url = env[key];
+      const token = env[key.slice(0, -urlSuffix.length) + tokenSuffix];
+      if (url && token) return { url: url.replace(/\/$/, ''), token };
+    }
+  }
+  return null;
 }
 
 function redisStore({ url, token }) {
