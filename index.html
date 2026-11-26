@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>DrunkDeer Control</title>
+  <meta name="description" content="Unofficial WebHID driver for DrunkDeer first-gen keyboards (A75, A75 Pro, G65, G60, G75) with shareable presets.">
+  <meta name="theme-color" content="#181a20">
+  <link rel="icon" href="assets/keyboard-small.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <!-- ===== Connect screen ===== -->
+  <main id="connect" class="connect">
+    <div class="connect-glow" aria-hidden="true"></div>
+    <button id="btn-connect" class="connect-btn" type="button">
+      <span class="ico ico-kbd" aria-hidden="true"></span>
+      <span class="connect-label">Connect Your Keyboard</span>
+    </button>
+    <p class="connect-note">
+      This is not official web driver for DrunkDeer
+      <b>! ONLY (A75, A75 Pro, 65, 60) FIRST GEN !</b>
+    </p>
+    <div class="demo-row">
+      <button id="btn-demo" class="link-btn" type="button">Click for Demo mode</button>
+      <select id="demo-model" class="demo-select" aria-label="Demo keyboard model"></select>
+    </div>
+    <div id="incoming" class="incoming" hidden></div>
+    <p id="hid-warn" class="connect-warn" hidden>
+      This browser has no WebHID support. Use desktop Chrome, Edge or Opera to connect a keyboard; Demo mode works everywhere.
+    </p>
+  </main>
+
+  <!-- ===== Main screen ===== -->
+  <div id="app" class="app" hidden>
+    <header class="topbar">
+      <div class="modes">
+        <button id="btn-rt" class="pill rt" type="button" aria-pressed="false"><span>Rapid Trigger</span></button>
+        <span class="turbo-wrap">
+          <button id="btn-turbo" class="pill turbo" type="button" aria-pressed="false" aria-describedby="turbo-tip">
+            <span class="ico ico-bolt" aria-hidden="true"></span><span>Turbo Mode</span>
+          </button>
+          <span id="turbo-tip" class="turbo-tip" role="tooltip">
+            <span><b>Lower input latency</b> — the keyboard stops animating the lighting so it can scan keys faster.</span>
+            <span class="turbo-tip-list">
+              <span>Lighting switches to the static <i>Turbo mode light</i> colours (paint them in Lighting)</span>
+              <span>Live key travel is turned off</span>
+              <span>Dual-Trigger and Last Win are turned off</span>
+            </span>
+            <small>Turning Turbo off brings back your previous lighting.</small>
+          </span>
+        </span>
+      </div>
+      <div class="device" tabindex="0" role="button" aria-haspopup="dialog" aria-label="Device settings" aria-describedby="dev-tip">
+        <div id="dev-tip" class="device-tip" role="tooltip">
+          <div><span>Driver</span><b id="ver-driver">—</b></div>
+          <div><span>Firmware</span><b id="ver-fw">—</b></div>
+        </div>
+        <div class="device-text">
+          <div><span class="brand">DrunkDeer</span> <span id="dev-model" class="model">A75 Pro</span></div>
+          <div id="dev-status" class="status">Connected</div>
+        </div>
+        <img class="device-img" src="assets/keyboard.svg" width="48" height="48" alt="">
+      </div>
+    </header>
+
+    <section class="stage">
+      <nav class="side" aria-label="Sections">
+        <div class="side-group">
+          <span class="side-ind" aria-hidden="true"></span>
+          <button class="side-btn" type="button" data-tab="perf" aria-label="Performance">
+            <span class="ico ico-home" aria-hidden="true"></span><span class="tip">Performance</span>
+          </button>
+          <button class="side-btn" type="button" data-tab="light" aria-label="Lighting">
+            <span class="ico ico-sun" aria-hidden="true"></span><span class="tip">Lighting</span>
+          </button>
+          <button class="side-btn" type="button" data-tab="remap" aria-label="Key remap">
+            <span class="ico ico-text" aria-hidden="true"></span><span class="tip">Key remap</span>
+          </button>
+          <button class="side-btn" type="button" data-tab="presets" aria-label="Presets">
+            <span class="ico ico-presets" aria-hidden="true"></span><span class="tip">Presets</span>
+          </button>
+        </div>
+        <button id="btn-settings" class="side-btn solo" type="button" aria-label="Settings" aria-haspopup="dialog">
+          <span class="ico ico-settings" aria-hidden="true"></span><span class="tip">Settings</span>
+        </button>
+      </nav>
+
+      <div class="main">
+        <div class="board-outer">
+          <div id="board-tools" class="board-tools"></div>
+          <div class="board-inner" id="board-scroll">
+            <div id="board" class="board" role="group" aria-label="Keyboard"></div>
+          </div>
+        </div>
+        <section id="panel" class="panel" aria-live="polite"></section>
+      </div>
+    </section>
+  </div>
+
+  <!-- ===== Settings (modal, ATK Hub style) ===== -->
+  <dialog id="settings" class="sheet" aria-labelledby="settings-title">
+    <div class="sheet-side">
+      <h2 id="settings-title" class="sheet-title">Settings</h2>
+      <nav class="sheet-nav" aria-label="Settings sections">
+        <button type="button" data-sec="device" aria-current="page">Device</button>
+        <button type="button" data-sec="firmware">Firmware</button>
+        <button type="button" data-sec="interface">Interface</button>
+        <button type="button" data-sec="about">About</button>
+      </nav>
+    </div>
+    <div id="settings-body" class="sheet-body"></div>
+    <button class="sheet-close" type="button" data-close aria-label="Close"><span class="ico ico-close" aria-hidden="true"></span></button>
+  </dialog>
+
+  <!-- ===== Generic form dialog ===== -->
+  <dialog id="modal" class="modal">
+    <form method="dialog">
+      <h3 id="modal-title">Rename</h3>
+      <div id="modal-body" class="modal-body"></div>
+      <div class="toolbar end">
+        <button class="btn" value="cancel" type="submit" formnovalidate>Cancel</button>
+        <button id="modal-ok" class="btn primary" value="ok" type="submit">OK</button>
+      </div>
+    </form>
+  </dialog>
+
+  <input id="file-import" type="file" accept=".json,application/json" hidden>
+  <div id="toasts" class="toasts" role="status"></div>
+
+  <script src="lib/mini.js"></script>
+  <script src="js/layouts.js"></script>
+  <script src="js/presets.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
